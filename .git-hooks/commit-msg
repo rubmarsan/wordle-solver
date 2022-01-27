@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+
+# ensure https://github.com/qoomon/git-conventional-commits is installed
+git-conventional-commits commit-msg-hook "$1"
