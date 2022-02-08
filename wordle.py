@@ -6,7 +6,7 @@ from helpers import *
 
 if __name__ == '__main__':
     t0 = time.time()
-    words = load_dictionary()
+    words = load_dictionary_with_frequencies()
     print(f"Elapsed {time.time() - t0} seconds [loading dictionary]")
 
     # Empiezo con un random guess => olear
@@ -15,25 +15,22 @@ if __name__ == '__main__':
     words = filter_dictionary_with_rule(words, LetterNotInThatPosition(0, "o"))
     words = filter_dictionary_with_rule(words, LetterInWord("o"))
 
-    words = filter_dictionary_with_rule(words, LetterNotInThatPosition(4, "r"))
-    words = filter_dictionary_with_rule(words, LetterInWord("r"))
-
-    words = filter_dictionary_with_rule(words, LetterNotInWord("l"))
+    words = filter_dictionary_with_rule(words, LetterNotInWord("r"))
     words = filter_dictionary_with_rule(words, LetterNotInWord("e"))
     words = filter_dictionary_with_rule(words, LetterNotInWord("a"))
+    words = filter_dictionary_with_rule(words, LetterNotInWord("s"))
 
 
-    # turco
-    words = filter_dictionary_with_rule(words, LetterInThatPosition(2, "r"))
-    words = filter_dictionary_with_rule(words, LetterInThatPosition(4, "o"))
-
-    words = filter_dictionary_with_rule(words, LetterNotInThatPosition(0, "t"))
-    words = filter_dictionary_with_rule(words, LetterInWord("t"))
-
-    words = filter_dictionary_with_rule(words, LetterNotInThatPosition(3, "c"))
-    words = filter_dictionary_with_rule(words, LetterInWord("c"))
-
-    words = filter_dictionary_with_rule(words, LetterNotInWord("u"))
+    # # canal
+    # words = filter_dictionary_with_rule(words, LetterInThatPosition(1, "o"))
+    # words = filter_dictionary_with_rule(words, LetterInThatPosition(3, "i"))
+    #
+    #
+    # words = filter_dictionary_with_rule(words, LetterNotInThatPosition(4, "n"))
+    # words = filter_dictionary_with_rule(words, LetterInWord("n"))
+    #
+    # words = filter_dictionary_with_rule(words, LetterNotInWord("c"))
+    # words = filter_dictionary_with_rule(words, LetterNotInWord("l"))
 
 
     # # colin

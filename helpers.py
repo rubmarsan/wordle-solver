@@ -1,11 +1,38 @@
 from rules import Rule
 import functools
 import operator
-from collections import Counter, defaultdict
+from collections import Counter, defaultdict, OrderedDict
 import math
 import random
 import numpy as np
 from rules import *
+
+
+def load_CREA(path: str = "CREA_total.TXT"):
+    cleant = dict()
+    with open(path, "r") as f:
+        lines = f.readlines()
+        for line in lines[1:]:
+            order, word, freq_abs, freq_norm = line.split()
+            if len(word) == 5:
+                cleant[word] = freq_abs
+
+    return cleant
+
+
+def add_frequencies_to_dictionary(word_list, CREA_word_list):
+    conjunction = OrderedDict()
+    for word in word_list:
+        if word not in CREA_word_list:
+            print("Word", word, "not in CREA")
+            continue
+
+        conjunction[word] = float(CREA_word_list[word].replace(",", ""))
+
+    # do not normalize, it will be done in latter steps
+    # total_apparitions = sum(conjunction.values())
+    # conjunction = {k: v / total_apparitions for k, v in conjunction.items()}
+    return conjunction
 
 
 def load_dictionary(path: str = "diccionario_5.lst") -> list:
@@ -13,11 +40,24 @@ def load_dictionary(path: str = "diccionario_5.lst") -> list:
         return [l.strip() for l in f.readlines()]
 
 
-def filter_dictionary_with_rule(words: list, rule: Rule) -> list:
-    return [word for word in words if rule.evaluate(word)]
+def load_dictionary_with_frequencies(dictionary_path: str = "diccionario_5.lst", CREA_path: str = "CREA_total.TXT"):
+    CREA_list = load_CREA(CREA_path)
+    words = load_dictionary(dictionary_path)
+    words_with_freq = add_frequencies_to_dictionary(words, CREA_list)
+    return words_with_freq
 
 
-def get_letters_frequencies(words: list, duplicate_letters_allowed=True) -> dict:
+def filter_dictionary_with_rule(words: dict, rule: Rule) -> dict[str, float]:
+    # filtered: list[str] = []
+    # for word in words:
+    #     if rule.evaluate(word):
+    #         filtered.append(word)
+    #
+    # return filtered
+    return {word: freq for word, freq in words.items() if rule.evaluate(word)}
+
+
+def get_letters_frequencies(words: dict, duplicate_letters_allowed=True) -> dict:
     """
     When :duplicate_letters_allowed: is True, this method obtains the prevalence of a letter C among the whole
     words list. That is, how likely is for a given random character in a word to be precisely C.
@@ -30,9 +70,9 @@ def get_letters_frequencies(words: list, duplicate_letters_allowed=True) -> dict
     returned value).
     """
     if duplicate_letters_allowed:
-        splitted = list(map(list, words))
+        splitted = list(map(list, words.keys()))
     else:
-        splitted = list(map(set, words))
+        splitted = list(map(set, words.keys()))
 
     flatten_list = functools.reduce(operator.iconcat, splitted, [])
 
@@ -60,6 +100,7 @@ def score_partition(partition_1_size, partition_2_size):
     N = N1 + N2
     return math.log2(N / max(N1, N2))
 
+
 def score_partition_alt(partition_1_size, partition_2_size):
     """
     Scores the goodness of the partition. Goes from 0 (if a partition is empty and its counterpart contains all words)
@@ -73,33 +114,43 @@ def score_partition_alt(partition_1_size, partition_2_size):
     N = N1 + N2
     return 2 * (1 - (max(N1, N2) / N))
 
-def derive_positive_rules_of_word(word: str):
+
+def derive_rules_of_word(word_chosen: str, word_groundtruth: str):
     """
-    Given a word, derives the "positive" rules of a word. Positive Rules a
+    Given a word, derives the rules of a word.
     :param word:
     :return:
     """
 
-    letter_at_rules = []
-    letter_at_rules
+    resulting_new_rules = []
+    already_present_letters = defaultdict(int)
+    for c_i in range(len(word_chosen)):
+        candidate_letter = word_chosen[c_i]
+        compared_letter = word_groundtruth[c_i]
+        if candidate_letter == compared_letter:
+            # green
+            already_present_letters[candidate_letter] += 1
+            resulting_new_rules.append(LetterInThatPosition(c_i, candidate_letter))
+        elif candidate_letter in word_groundtruth:
+            # gray (puede que c esté más de una vez
 
-def overlaping_rules(rules_applied: list, rules_groundtruth: list) -> list:
-    """
-    Dada una lista de reglas derivada de una palabra (ej. abeto) y otra lista de reglas de una groundtruth (la que realmente
-    era, ej. oveja), sacar las ovrelaping rules.
-    En este caso overlapearía:
-        - LetterInThatPosition(2, e)
-        - LetterInWord(o)
-        - LetterInWord(a)
+            # ya habíamos computado este gray antes, para que vuelva a ser gray la comparing word debe tener
+            # más veces este caracter
+            if word_groundtruth.count(candidate_letter) <= already_present_letters[candidate_letter]:
+                continue
+
+            already_present_letters[candidate_letter] += 1
+            resulting_new_rules.append(LetterNotInThatPosition(c_i, candidate_letter))
+            resulting_new_rules.append(LetterInWord(candidate_letter, times=already_present_letters[candidate_letter]))
+        else:
+            r = LetterNotInWord(candidate_letter)
+            resulting_new_rules.append(r)
+
+    resulting_new_rules = list(set(resulting_new_rules))    # filter posible duplicates
+    return resulting_new_rules
 
 
-    :param rules_applied:
-    :param rules_groundtruth:
-    :return:
-    """
-    pass
-
-def value_of_word_alt(candidate_word, words):
+def value_of_word_alt(candidate_word, words: dict):
     """
     Si aplico "abeja", tengo que ver cuánto biparticionaría (score) el word-set si fuera cada una de las OTRAS palabras
     candidatas. Dado que la palabra escogida (ej. abeja) no es, se me queda un tamaño del word list potencialmente distinto
@@ -112,45 +163,49 @@ def value_of_word_alt(candidate_word, words):
     :return:
     """
     L = len(words)
-    total_expected_scores = []
-    for w_i, comparing_word in enumerate(list(words)):
-        if comparing_word == candidate_word:
+    total_expected_score = 0
+    total_words_freq = sum(words.values())
+    for groundtruth_word, groundtruth_word_freq in words.items():
+        if groundtruth_word == candidate_word:
             continue
 
-        already_present_letters = defaultdict(int)
-        resulting_new_rules = []
-        for c_i in range(len(candidate_word)):
-            candidate_letter = candidate_word[c_i]
-            compared_letter = comparing_word[c_i]
-            if candidate_letter == compared_letter:
-                # green
-                already_present_letters[candidate_letter] += 1
-                resulting_new_rules.append(LetterInThatPosition(c_i, candidate_letter))
-            elif candidate_letter in comparing_word:
-                # gray (puede que c esté más de una vez
+        resulting_new_rules = derive_rules_of_word(candidate_word, groundtruth_word)
+        # already_present_letters = defaultdict(int)
+        # resulting_new_rules = []
+        # for c_i in range(len(candidate_word)):
+        #     candidate_letter = candidate_word[c_i]
+        #     compared_letter = comparing_word[c_i]
+        #     if candidate_letter == compared_letter:
+        #         # green
+        #         already_present_letters[candidate_letter] += 1
+        #         resulting_new_rules.append(LetterInThatPosition(c_i, candidate_letter))
+        #     elif candidate_letter in comparing_word:
+        #         # gray (puede que c esté más de una vez
+        #
+        #         # ya habíamos computado este gray antes, para que vuelva a ser gray la comparing word debe tener
+        #         # más veces este caracter
+        #         if comparing_word.count(candidate_letter) <= already_present_letters[candidate_letter]:
+        #             continue
+        #
+        #         already_present_letters[candidate_letter] += 1
+        #         resulting_new_rules.append(LetterNotInThatPosition(c_i, candidate_letter))
+        #         resulting_new_rules.append(LetterInWord(candidate_letter, times=already_present_letters[candidate_letter]))
+        #     else:
+        #         r = LetterNotInWord(candidate_letter)
+        #         resulting_new_rules.append(r)
 
-                # ya habíamos computado este gray antes, para que vuelva a ser gray la comparing word debe tener
-                # más veces este caracter
-                if comparing_word.count(candidate_letter) <= already_present_letters[candidate_letter]:
-                    continue
-
-                already_present_letters[candidate_letter] += 1
-                resulting_new_rules.append(LetterNotInThatPosition(c_i, candidate_letter))
-                resulting_new_rules.append(LetterInWord(candidate_letter, times=already_present_letters[candidate_letter]))
-            else:
-                r = LetterNotInWord(candidate_letter)
-                resulting_new_rules.append(r)
-
-        resulting_new_rules = list(set(resulting_new_rules))
-        subset_words = list(words)
+        subset_words = dict(words)
         for rule in resulting_new_rules:
             subset_words = filter_dictionary_with_rule(subset_words, rule)
 
         L_p = len(subset_words)
-        this_score = 1 - ( (L_p - 1) / L)  # cuánto reduzco el set, dejar 1 es ganar
-        total_expected_scores.append(this_score)
+        # this_score = 1 - ((L_p - 1) / L)  # cuánto reduzco el set, dejar 1 es ganar
+        this_score = -math.log2(L_p/L)  # information score
+        weighted_score = this_score * groundtruth_word_freq / total_words_freq
+        total_expected_score += weighted_score
 
-    return np.mean(total_expected_scores)
+    return total_expected_score
+
 
 def value_of_word(candidate_word, words, freqs_per_pos, letter_frequencies):
     """
@@ -229,28 +284,16 @@ def compute_score_letter(letter: str, position: int, words: list):
     return score_green, score_yellow, score_gray
 
 
-
-def prevalence_character_in_position(position: int, words: list):
+def prevalence_character_in_position(position: int, words: dict):
     L = len(words)
-    c = Counter(word[position] for word in words)
+    c = Counter(word[position] for word in words.keys())
     most_common = c.most_common()
     d = {letter: occurrences / L for (letter, occurrences) in most_common}
     return defaultdict(int, d)
 
 
-# def score_words(words: list, letters_frequencies: dict) -> list:
-#     scores = []
-#
-#     for w in words:
-#         letters_probs = [letters_frequencies[c] for c in list(w)]
-#         accum_prob = functools.reduce((lambda x, y: x * y), letters_probs)
-#         multiplier = len(set(w)) ** 2
-#         scores.append(accum_prob * multiplier)
-#
-#     return scores
-
-
-# def choose_word_from_scores(words: list, scores: list) -> str:
-#     idxs = np.where( scores == np.max(scores) )[0]
-#     chosen = [words[idx] for idx in idxs]
-#     return random.choice(chosen)
+if __name__ == '__main__':
+    CREA_list = load_CREA()
+    words = load_dictionary()
+    words_with_freq = add_frequencies_to_dictionary(words, CREA_list)
+    print("Ok")

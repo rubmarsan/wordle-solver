@@ -6,6 +6,7 @@ class Rule(ABC):
     def evaluate(self, word: str):
         pass
 
+
 class PositionalRule(Rule):
     def __init__(self, position: int, letter: str):
         self.position = position
@@ -15,7 +16,7 @@ class PositionalRule(Rule):
     def evaluate(self, word: str):
         pass
 
-    def __eq__(self, other):
+    def __eq__(self, other: Rule):
         if isinstance(other, NonPositionalRule):
             return False
         elif isinstance(other, PositionalRule):
@@ -26,13 +27,14 @@ class PositionalRule(Rule):
     def __hash__(self):
         return id(f"{self.position}, {self.letter}")
 
+
 class LetterNotInThatPosition(PositionalRule):
-    def evaluate(self, word):
+    def evaluate(self, word: str) -> bool:
         return word[self.position] != self.letter
 
 
 class LetterInThatPosition(PositionalRule):
-    def evaluate(self, word):
+    def evaluate(self, word: str) -> bool:
         return word[self.position] == self.letter
 
 
@@ -58,10 +60,10 @@ class NonPositionalRule(Rule):
 
 
 class LetterInWord(NonPositionalRule):
-    def evaluate(self, word: str):
+    def evaluate(self, word: str) -> bool:
         return word.count(self.letter) >= self.times
 
 
 class LetterNotInWord(NonPositionalRule):
-    def evaluate(self, word: str):
+    def evaluate(self, word: str) -> bool:
         return self.letter not in word
