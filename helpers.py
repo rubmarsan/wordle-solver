@@ -1,3 +1,5 @@
+import time
+
 from rules import Rule
 import functools
 import operator
@@ -170,30 +172,7 @@ def value_of_word_alt(candidate_word, words: dict):
             continue
 
         resulting_new_rules = derive_rules_of_word(candidate_word, groundtruth_word)
-        # already_present_letters = defaultdict(int)
-        # resulting_new_rules = []
-        # for c_i in range(len(candidate_word)):
-        #     candidate_letter = candidate_word[c_i]
-        #     compared_letter = comparing_word[c_i]
-        #     if candidate_letter == compared_letter:
-        #         # green
-        #         already_present_letters[candidate_letter] += 1
-        #         resulting_new_rules.append(LetterInThatPosition(c_i, candidate_letter))
-        #     elif candidate_letter in comparing_word:
-        #         # gray (puede que c esté más de una vez
-        #
-        #         # ya habíamos computado este gray antes, para que vuelva a ser gray la comparing word debe tener
-        #         # más veces este caracter
-        #         if comparing_word.count(candidate_letter) <= already_present_letters[candidate_letter]:
-        #             continue
-        #
-        #         already_present_letters[candidate_letter] += 1
-        #         resulting_new_rules.append(LetterNotInThatPosition(c_i, candidate_letter))
-        #         resulting_new_rules.append(LetterInWord(candidate_letter, times=already_present_letters[candidate_letter]))
-        #     else:
-        #         r = LetterNotInWord(candidate_letter)
-        #         resulting_new_rules.append(r)
-
+        
         subset_words = dict(words)
         for rule in resulting_new_rules:
             subset_words = filter_dictionary_with_rule(subset_words, rule)
@@ -291,6 +270,14 @@ def prevalence_character_in_position(position: int, words: dict):
     d = {letter: occurrences / L for (letter, occurrences) in most_common}
     return defaultdict(int, d)
 
+
+def send_word_to_chrome(driver, word: str):
+    body = driver.find_element_by_css_selector("body")
+    for letter in word:
+        body.send_keys(letter)
+        time.sleep(0.2)
+
+    body.send_keys("\n")
 
 if __name__ == '__main__':
     CREA_list = load_CREA()
