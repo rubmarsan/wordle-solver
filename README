@@ -1,0 +1,6 @@
+# Info
+A wordle solver fully automated via Selenium
+Just click "play" and enjoy.
+
+# Limitations
+Still working for the Spanish version only (for other languages, the dictionary and word frequencies must be changed)
