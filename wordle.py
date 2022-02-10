@@ -32,13 +32,14 @@ if __name__ == '__main__':
 
     guess = "olear"
     for iteration in range(6):
-        # Empiezo con un random guess => olear
-        send_word_to_chrome(driver, guess)
         if achieved_convergence:
             print("That's all folks")
             time.sleep(20)
             driver.close()
             exit()
+
+        # Empiezo con un random guess => olear
+        send_word_to_chrome(driver, guess)
 
         letters_hit = defaultdict(int)
         for letter_position in range(5):
