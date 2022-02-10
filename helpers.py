@@ -168,8 +168,8 @@ def value_of_word_alt(candidate_word, words: dict):
     total_expected_score = 0
     total_words_freq = sum(words.values())
     for groundtruth_word, groundtruth_word_freq in words.items():
-        if groundtruth_word == candidate_word:
-            continue
+        # if groundtruth_word == candidate_word:
+        #     continue
 
         resulting_new_rules = derive_rules_of_word(candidate_word, groundtruth_word)
         
